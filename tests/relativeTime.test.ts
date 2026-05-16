@@ -17,6 +17,12 @@ describe('relativeTime', () => {
   it('shows days', () => {
     expect(relativeTime('2026-05-12T12:00:00Z', NOW)).toBe('4d ago')
   })
+  it('shows months when >=30 days old', () => {
+    expect(relativeTime('2026-03-16T12:00:00Z', NOW)).toBe('2mo ago')
+  })
+  it('shows years when >=12 months old', () => {
+    expect(relativeTime('2024-05-16T12:00:00Z', NOW)).toBe('2y ago')
+  })
   it('returns ? for invalid input', () => {
     expect(relativeTime('not-a-date', NOW)).toBe('?')
   })

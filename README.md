@@ -100,12 +100,15 @@ prd
 Scripts:
 
 ```
-npm run dev         # run via tsx
-npm run test        # vitest
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint
-npm run verify      # all three (typecheck + lint + test)
+npm run dev            # run via tsx
+npm run test           # vitest
+npm run test:coverage  # vitest with v8 coverage report
+npm run typecheck      # tsc --noEmit
+npm run lint           # eslint
+npm run verify         # typecheck + lint + test (CI gate)
 ```
+
+Coverage thresholds: 90% statements / 80% branches / 90% functions / 90% lines on the unit-testable modules (`src/config`, `src/poll`, `src/format`). UI components are excluded — they're tested at integration level. CI runs `npm run test:coverage` on every push and uploads the HTML report as a workflow artifact.
 
 ## Why not just use `gh pr list`?
 

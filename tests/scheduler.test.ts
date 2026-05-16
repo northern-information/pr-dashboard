@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { runOneTick } from '@/poll/scheduler.ts'
+import { runOneTick, startScheduler } from '@/poll/scheduler.ts'
+import type { PollTick } from '@/poll/scheduler.ts'
 import type { DetailedPR, IndexedPR } from '@/github/types.ts'
 
 const indexed = (id: string, updatedAt = '2026-05-16T12:00:00Z', headRefOid = 'abc'): IndexedPR => ({
@@ -107,5 +108,109 @@ describe('runOneTick', () => {
     const tick = await runOneTick(opts, cache, { fetchIndex, fetchDetails })
     expect(tick.prs).toHaveLength(1)
     expect(fetchDetails.mock.calls[0]?.[0]).toEqual(['a'])
+  })
+})
+
+describe('startScheduler', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('emits a tick immediately on start', async () => {
+    const fetchIndex = vi.fn(() => Promise.resolve({ data: [indexed('a')], rateLimit: null }))
+    const fetchDetails = vi.fn((ids: string[]) =>
+      Promise.resolve({ data: ids.map(id => detail(id)), rateLimit: null })
+    )
+    const onTick = vi.fn<(t: PollTick) => void>()
+    const handle = startScheduler(
+      { scope: { presetKey: 'work', filters: ['q'] }, indexIntervalMs: 1000, detailBatchSize: 25, onTick },
+      { fetchIndex, fetchDetails }
+    )
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(1)
+    })
+    handle.stop()
+  })
+
+  it('re-ticks after indexIntervalMs', async () => {
+    const fetchIndex = vi.fn(() => Promise.resolve({ data: [indexed('a')], rateLimit: null }))
+    const fetchDetails = vi.fn((ids: string[]) =>
+      Promise.resolve({ data: ids.map(id => detail(id)), rateLimit: null })
+    )
+    const onTick = vi.fn<(t: PollTick) => void>()
+    const handle = startScheduler(
+      { scope: { presetKey: 'work', filters: ['q'] }, indexIntervalMs: 1000, detailBatchSize: 25, onTick },
+      { fetchIndex, fetchDetails }
+    )
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(1)
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(2)
+    })
+    handle.stop()
+  })
+
+  it('stops emitting after stop() is called', async () => {
+    const fetchIndex = vi.fn(() => Promise.resolve({ data: [indexed('a')], rateLimit: null }))
+    const fetchDetails = vi.fn((ids: string[]) =>
+      Promise.resolve({ data: ids.map(id => detail(id)), rateLimit: null })
+    )
+    const onTick = vi.fn<(t: PollTick) => void>()
+    const handle = startScheduler(
+      { scope: { presetKey: 'work', filters: ['q'] }, indexIntervalMs: 1000, detailBatchSize: 25, onTick },
+      { fetchIndex, fetchDetails }
+    )
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(1)
+    })
+    handle.stop()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(onTick).toHaveBeenCalledTimes(1)
+  })
+
+  it('forceRefresh triggers an extra tick before the scheduled one', async () => {
+    const fetchIndex = vi.fn(() => Promise.resolve({ data: [indexed('a')], rateLimit: null }))
+    const fetchDetails = vi.fn((ids: string[]) =>
+      Promise.resolve({ data: ids.map(id => detail(id)), rateLimit: null })
+    )
+    const onTick = vi.fn<(t: PollTick) => void>()
+    const handle = startScheduler(
+      { scope: { presetKey: 'work', filters: ['q'] }, indexIntervalMs: 10_000, detailBatchSize: 25, onTick },
+      { fetchIndex, fetchDetails }
+    )
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(1)
+    })
+    handle.forceRefresh()
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(2)
+    })
+    handle.stop()
+  })
+
+  it('setScope clears cache and re-ticks with the new scope', async () => {
+    const fetchIndex = vi.fn(() => Promise.resolve({ data: [indexed('a')], rateLimit: null }))
+    const fetchDetails = vi.fn((ids: string[]) =>
+      Promise.resolve({ data: ids.map(id => detail(id)), rateLimit: null })
+    )
+    const onTick = vi.fn<(t: PollTick) => void>()
+    const handle = startScheduler(
+      { scope: { presetKey: 'work', filters: ['q'] }, indexIntervalMs: 10_000, detailBatchSize: 25, onTick },
+      { fetchIndex, fetchDetails }
+    )
+    await vi.waitFor(() => {
+      expect(onTick).toHaveBeenCalledTimes(1)
+    })
+    handle.setScope({ presetKey: 'personal', filters: ['q2'] })
+    await vi.waitFor(() => {
+      const calls = onTick.mock.calls
+      expect(calls[calls.length - 1]?.[0].presetKey).toBe('personal')
+    })
+    handle.stop()
   })
 })

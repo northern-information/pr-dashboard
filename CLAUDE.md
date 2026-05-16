@@ -93,6 +93,38 @@ Vitest. Tests in `tests/`. Each module's invariants:
 
 When adding a new feature, add or update the relevant test. `npm run verify` is the CI gate.
 
+## Coverage
+
+`npm run test:coverage` runs the v8 coverage provider. Thresholds (in `vitest.config.ts`):
+
+- statements: 90%
+- branches: 80%
+- functions: 90%
+- lines: 90%
+
+Scope is restricted to `src/config/**`, `src/poll/**`, `src/format/**` — the modules that are unit-testable in Node. UI components (`src/ui/**`) and shell-out code (`src/auth/**`, `src/github/**`) are excluded; those are exercised by integration smoke tests against live data.
+
+CI (`.github/workflows/ci.yml`) runs `npm run test:coverage` on every push and PR, then uploads the `coverage/` directory as a workflow artifact (downloadable from the workflow run page). No third-party coverage service required.
+
+## Publishing
+
+`.github/workflows/publish.yml` publishes to npm on every tag push matching `v*`. Flow:
+
+```
+npm version patch       # 0.1.0 → 0.1.1, creates a git tag
+git push --follow-tags  # pushes commit + tag
+```
+
+The workflow:
+1. Checks out the tagged commit
+2. Runs `npm ci`
+3. Verifies the git tag matches `package.json` version (e.g. `v0.1.1` must match `"version": "0.1.1"`)
+4. Runs `npm publish --provenance --access public` with `NODE_AUTH_TOKEN=${{ secrets.NPM_TOKEN }}`
+
+Provenance adds a verified link from the npm package back to the GitHub commit it was built from. Shows up as a "verified" badge on npmjs.com.
+
+The `NPM_TOKEN` secret needs to be added to repo settings (one-time setup) — generate at npmjs.com → Access Tokens → Generate New Token → "Automation" type.
+
 ## What lives where
 
 - Adding a new column: extend `ColumnKey` in `src/config/schema.ts`, add a spec to `src/ui/columns.ts`, handle it in the switch in `src/ui/PRTable.tsx`. Update README's "Columns" section.

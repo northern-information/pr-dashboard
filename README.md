@@ -9,7 +9,7 @@ npm i -g @northern-information/pr-dashboard
 ```
 
 Requirements:
-- **Node 22 or later** — check with `node --version`
+- **Node 24.13.0** — check with `node --version`. The exact patch is pinned in `.node-version`, `.nvmrc`, and `package.json` `engines.node`; all three stay in sync. See `CLAUDE.md` for the policy.
 - **`gh` CLI** installed and authenticated — `brew install gh && gh auth login`
 
 That's it. The tool re-uses your `gh` session, so there's nothing else to configure.
@@ -90,10 +90,12 @@ Each scope renders as a single GitHub search query: `is:open is:pr involves:@me 
 ```
 git clone git@github.com:northern-information/pr-dashboard.git
 cd pr-dashboard
-npm install
-npm link        # makes `prd` resolve to your local checkout
+npm ci           # reproducible install from package-lock.json
+npm link         # makes `prd` resolve to your local checkout
 prd
 ```
+
+Use `npm install` only when you're changing `package.json` (adding, removing, or bumping a dep). For everything else — initial clone, switching branches, CI — `npm ci` is faster and never silently mutates the lockfile.
 
 Scripts:
 

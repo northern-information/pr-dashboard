@@ -9,7 +9,7 @@ import { startScheduler } from '../poll/scheduler.ts'
 import { FailedChecks } from './FailedChecks.tsx'
 import { FilterBar } from './FilterBar.tsx'
 import { Header } from './Header.tsx'
-import { PresetTabs } from './PresetTabs.tsx'
+import { ScopeTabs } from './ScopeTabs.tsx'
 import { PRTable } from './PRTable.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
 import { StatusFooter } from './StatusFooter.tsx'
@@ -27,11 +27,12 @@ interface Props {
   viewer: ViewerScopes
   firstRun: boolean
   update: UpdateInfo | null
+  version: string
 }
 
 const FLASH_MS = 1200
 
-export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer, firstRun, update }) => {
+export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer, firstRun, update, version }) => {
   const { exit } = useApp()
   const { stdout } = useStdout()
 
@@ -92,7 +93,7 @@ export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer
     setLoading(true)
     setError(null)
     const handle = startScheduler({
-      scope: { presetKey: scope.key, filters: [scopeToFilter(scope)] },
+      scope: { scopeKey: scope.key, filters: [scopeToFilter(scope)] },
       indexIntervalMs: config.indexIntervalMs,
       detailBatchSize: config.detailMaxBatchSize,
       onTick: handleTick,
@@ -231,9 +232,9 @@ export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer
       setShowChecks(s => !s)
       return
     }
-    const presetIndex = Number.parseInt(input, 10)
-    if (!Number.isNaN(presetIndex) && presetIndex >= 1 && presetIndex <= enabledScopes.length) {
-      const target = enabledScopes[presetIndex - 1]
+    const scopeIndex = Number.parseInt(input, 10)
+    if (!Number.isNaN(scopeIndex) && scopeIndex >= 1 && scopeIndex <= enabledScopes.length) {
+      const target = enabledScopes[scopeIndex - 1]
       if (target) switchScope(target.key)
     }
   })
@@ -271,14 +272,14 @@ export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer
   return (
     <Box flexDirection="column">
       <Header
-        presetLabel={activeLabel}
-        presetKey={activeKey ?? ''}
+        scopeLabel={activeLabel}
+        scopeKey={activeKey ?? ''}
         totalCount={indexedCount}
         visibleCount={filtered.length}
         error={error}
         filterText={filterText}
       />
-      <PresetTabs presets={tabs} active={activeKey ?? ''} />
+      <ScopeTabs scopes={tabs} active={activeKey ?? ''} />
       <PRTable prs={filtered} columns={config.columns} cursor={cursor} now={now} flashUntil={flashUntil} terminalWidth={terminalWidth} />
       {showChecks ? <FailedChecks pr={focused} /> : null}
       {filterMode ? (
@@ -299,7 +300,7 @@ export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer
           }}
         />
       ) : null}
-      <StatusFooter lastTickAt={lastTickAt} nextTickAt={nextTickAt} rateLimit={rateLimit} now={now} loading={loading} />
+      <StatusFooter lastTickAt={lastTickAt} nextTickAt={nextTickAt} rateLimit={rateLimit} now={now} loading={loading} version={version} />
       <UpdateBanner update={update} />
     </Box>
   )

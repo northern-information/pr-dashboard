@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { execFile } from 'node:child_process'
-import { Box, Text, useApp, useInput, useStdout } from 'ink'
+import { Box, Text, useApp, useInput, useWindowSize } from 'ink'
 
 import { saveConfig } from '../config/loader.ts'
 import { buildScopes, scopeToFilter } from '../config/schema.ts'
@@ -34,7 +34,6 @@ const FLASH_MS = 1200
 
 export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer, firstRun, update, version }) => {
   const { exit } = useApp()
-  const { stdout } = useStdout()
 
   const [config, setConfig] = useState(initialConfig)
   const initialScopes = useMemo(
@@ -117,16 +116,7 @@ export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer
   }, [])
 
   // Track terminal size and react to resizes so the sticky footer stays pinned.
-  const [terminalSize, setTerminalSize] = useState({ width: stdout.columns ?? 120, height: stdout.rows ?? 40 })
-  useEffect(() => {
-    const onResize = (): void => {
-      setTerminalSize({ width: stdout.columns ?? 120, height: stdout.rows ?? 40 })
-    }
-    stdout.on('resize', onResize)
-    return () => {
-      stdout.off('resize', onResize)
-    }
-  }, [stdout])
+  const { columns: terminalWidth } = useWindowSize()
 
   const filtered = useMemo(() => {
     if (!filterText) return prs
@@ -241,7 +231,6 @@ export const App: React.FC<Props> = ({ config: initialConfig, configPath, viewer
 
   const tabs = enabledScopes.map(s => ({ key: s.key, label: s.label }))
   const activeLabel = enabledScopes.find(s => s.key === activeKey)?.label ?? '—'
-  const terminalWidth = terminalSize.width
   const focused = filtered[cursor] ?? null
 
   if (enabledScopes.length === 0) {
